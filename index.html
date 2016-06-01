@@ -3,31 +3,67 @@
 <body>
 <h1>Chat</h1>
 <div id="chat"></div>
-<input id="msg" type="text">
+<input id="msg" type="text"> <br>
+nickname: <br>
+<input id="nick" type="text" value="noname">
 <style>
 input { border: 1px solid green; }
 </style>
+<div id="smileys"></div>
 <script>
 
   var chat = document.getElementById('chat'),
-      msg = document.getElementById('msg');
+      msg = document.getElementById('msg'),
+      smileys = document.getElementById('smileys');
+  var smileyMap = {};
   msg.focus();
 
   msg.addEventListener('keydown', function(event) {
     if (event.keyCode === 13) {
-      var s = msg.value;
+      var s = nick.value + ": " + msg.value;
       msg.value = '';
       writeLine(s);
       socket.send(s);
     }
   });
 
+  function drawSmiley(text, code) {
+    var re = new RegExp(code, 'g');
+    return text.replace(re, '<img style="display: inline;" src="' + smileyMap[code] + '" title = "' + code + '">');
+  }
+  
   function writeLine(text) {
     var line = document.createElement('div');
+    for(key in smileyMap) {
+      text = drawSmiley(text, key);
+    }
+    console.log(text);
     line.innerHTML = '<p>' + text + '</p>';
     chat.appendChild(line);
   }
-
+  
+  function insertSmileys(smMap) {
+    var i = 0;
+    var line = document.createElement('div');
+    for(key in smMap){       
+      var smileImg = smImgByCode(key, smMap);
+      smileImg.addEventListener('click', function(e) {
+        msg.value = msg.value + ' ' + event.target.title + ' ';
+        msg.focus();
+      });  
+      line.appendChild(smileImg);
+    }
+    smileys.appendChild(line);
+  }
+  
+  function smImgByCode(code, smMap) {
+    var smileImg = document.createElement('img');
+    smileImg.src = smMap[code];
+    smileImg.title = code;
+    smileImg.alt = code;
+    return smileImg;
+  }
+  
   var socket = new WebSocket('ws://127.0.0.1/chat');
 
   socket.onopen = function() {
@@ -39,7 +75,14 @@ input { border: 1px solid green; }
   };
 
   socket.onmessage = function(event) {
-    writeLine(event.data);
+    var data = JSON.parse(event.data);
+    if(data.smileyMap) {
+      smileyMap = data.smileyMap;
+      insertSmileys(smileyMap);
+    }
+    if(data.message) {      
+      writeLine(data.message);   
+    }
   };
 
 </script>
